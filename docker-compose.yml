@@ -1,31 +1,34 @@
-version: "3.9"
+version: '3.8'
 
 services:
-
-  # Локальный Telegram Bot API сервер — снимает лимит 50MB
+  # Сервис локального Bot API
   telegram-bot-api:
     image: aiogram/telegram-bot-api:latest
     environment:
-      TELEGRAM_API_ID: ${API_ID}
-      TELEGRAM_API_HASH: ${API_HASH}
-      TELEGRAM_LOCAL: 1
+      # Обязательно замени на свои данные с my.telegram.org
+      TELEGRAM_API_ID: "39723229"
+      TELEGRAM_API_HASH: "3e2b8ae519ce46f1e13f286050a56bca"
+    command: >
+      --local 
+      --api-id=$${TELEGRAM_API_ID} 
+      --api-hash=$${TELEGRAM_API_HASH} 
+      --dir=/data
     volumes:
-      - telegram-api-data:/var/lib/telegram-bot-api
-    restart: unless-stopped
+      - shared_data:/data
+    restart: always
 
-  # Наш бот
+  # Твой бот
   bot:
     build: .
-    environment:
-      BOT_TOKEN: ${BOT_TOKEN}
-      API_ID: ${API_ID}
-      API_HASH: ${API_HASH}
-      LOCAL_API_URL: http://telegram-bot-api:8081
-    volumes:
-      - ./downloads:/app/downloads
     depends_on:
       - telegram-bot-api
-    restart: unless-stopped
+    environment:
+      BOT_TOKEN: "ТВОЙ_ТОКЕН_БОТА"
+      # Бот будет обращаться к API по имени сервиса в сети Docker
+      LOCAL_API_URL: "http://telegram-bot-api:8081"
+    volumes:
+      - shared_data:/data
+    restart: always
 
 volumes:
-  telegram-api-data:
+  shared_data:
