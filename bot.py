@@ -75,7 +75,22 @@ async def handle_user_video(message: Message, bot: Bot):
     
     try:
         local_path = os.path.join(DOWNLOAD_DIR, f"fix_{video.file_id}.mp4")
-        await bot.download(video.file_id, destination=local_path)
+        # Получаем file_path через локальный API
+        file_info = await bot.get_file(video.file_id)
+        file_path = file_info.file_path
+        # На локальном Bot API file_path это абсолютный путь на сервере
+        # Копируем напрямую если файл доступен локально
+        import aiohttp, aiofiles
+        local_api_url = LOCAL_API.rstrip("/")
+        download_url = f"{local_api_url}/file/bot{BOT_TOKEN}/{file_path}"
+        async with aiohttp.ClientSession() as session:
+            async with session.get(download_url) as resp:
+                if resp.status == 200:
+                    async with aiofiles.open(local_path, "wb") as f:
+                        async for chunk in resp.content.iter_chunked(1024 * 1024):
+                            await f.write(chunk)
+                else:
+                    raise Exception(f"Не удалось скачать файл: HTTP {resp.status}")
         await msg.edit_text("✂️ Нарезаю...")
         await process_and_send(message, local_path, "Свой файл", 720, bot)
         await msg.delete()
