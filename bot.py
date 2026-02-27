@@ -1,6 +1,5 @@
-# Краткое резюме изменений: 
-# Добавлен shutil.copy для локальной работы и исправлен захват пути.
-import os, asyncio, glob, logging, subprocess, shutil, yt_dlp
+
+import os, asyncio, glob, logging, subprocess, yt_dlp
 from aiogram import Bot, Dispatcher, F
 from aiogram.types import Message, CallbackQuery, FSInputFile, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 from aiogram.filters import CommandStart
@@ -74,14 +73,15 @@ async def handle_user_video(message: Message, bot: Bot):
     msg = await message.answer("⚡ Локальный сервер принял файл. Копирую...")
     
     try:
-        file_info = await bot.get_file(video.file_id)
         local_path = os.path.join(DOWNLOAD_DIR, f"fix_{video.file_id}.mp4")
-        shutil.copy(file_info.file_path, local_path)
+        await bot.download(video.file_id, destination=local_path)
         await msg.edit_text("✂️ Нарезаю...")
         await process_and_send(message, local_path, "Свой файл", 720, bot)
         await msg.delete()
     except Exception as e:
-        await msg.edit_text(f" Ошибка API: Запустите сервер с флагом --local")
+        logger.error(f"Ошибка загрузки файла: {e}")
+        await msg.edit_text(f"❌ Ошибка:
+{str(e)[:300]}")
 
 async def main():
     bot = Bot(token=BOT_TOKEN, session=AiohttpSession(), base_url=f"{LOCAL_API}/", default=DefaultBotProperties(parse_mode="HTML"))
