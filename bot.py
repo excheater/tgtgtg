@@ -84,7 +84,7 @@ dp = Dispatcher()
 
 @dp.message(CommandStart())
 async def cmd_start(message: Message):
-    await message.answer("🚀 Пришли ссылку на видео!", reply_markup=ReplyKeyboardRemove())
+    await message.answer("ЭТО ТЕСТ ДЛЯ ТИМЛИДОВ , ЛЕША СОСИ", reply_markup=ReplyKeyboardRemove())
 
 @dp.message(F.text == "🛑 ОСТАНОВИТЬ")
 async def handle_stop_text(message: Message):
