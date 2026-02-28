@@ -1,3 +1,24 @@
+import os
+import asyncio
+import glob
+import logging
+import subprocess
+import yt_dlp
+from aiogram import Bot, Dispatcher, F
+from aiogram.types import Message, CallbackQuery, FSInputFile
+from aiogram.filters import CommandStart
+from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiogram.client.session.aiohttp import AiohttpSession
+from aiogram.client.default import DefaultBotProperties
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# =============================================
+BOT_TOKEN = os.environ.get("8096946406:AAFdBx7XWYvVg7qUUwr_JC-pVbplr2JN4-E", "8096946406:AAFdBx7XWYvVg7qUUwr_JC-pVbplr2JN4-E")
+LOCAL_API = os.environ.get("LOCAL_API_URL", "http://telegram-bot-api:8081")
+# =============================================
+
 DOWNLOAD_DIR = "./downloads"
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
