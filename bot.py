@@ -11,30 +11,31 @@ from aiogram.types import (
 )
 from aiogram.filters import CommandStart
 from aiogram.utils.keyboard import InlineKeyboardBuilder
-from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.client.default import DefaultBotProperties
-from aiogram.client.telegram import TelegramAPIServer  # Для локального API
 
-# Логирование
+# Настройка логирования
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Настройки
+# =============================================
+# Настройки (Берем только TOKEN)
 BOT_TOKEN = os.environ.get("8096946406:AAFdBx7XWYvVg7qUUwr_JC-pVbplr2JN4-E", "8096946406:AAFdBx7XWYvVg7qUUwr_JC-pVbplr2JN4-E")
-LOCAL_API = os.environ.get("LOCAL_API_URL", "http://telegram-bot-api:8081")
 DOWNLOAD_DIR = "./downloads"
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 download_lock = asyncio.Lock()
 pending = {}
-active_tasks = {} # Флаги для кнопки СТОП {user_id: bool}
+active_tasks = {} # Флаги отмены {user_id: bool}
+# =============================================
 
 def cleanup(path: str):
+    """Удаление файла"""
     if path and os.path.exists(path):
         try: os.remove(path)
         except: pass
 
 def get_ydl_opts():
+    """Настройки yt-dlp"""
     return {
         "quiet": True, 
         "no_warnings": True, 
@@ -46,16 +47,22 @@ def get_ydl_opts():
     }
 
 def split_video_by_time(input_file: str, segment_seconds: int) -> list[str]:
+    """Нарезка видео без перекодирования (сохраняет 16:9)"""
     if not os.path.exists(input_file): return []
     base_name = os.path.splitext(input_file)[0]
     output_pattern = f"{base_name}_part%03d.mp4"
-    cmd = ['ffmpeg', '-i', input_file, '-c', 'copy', '-map', '0', '-segment_time', str(segment_seconds), '-f', 'segment', '-reset_timestamps', '1', output_pattern]
+    cmd = [
+        'ffmpeg', '-i', input_file, '-c', 'copy', '-map', '0', 
+        '-segment_time', str(segment_seconds), '-f', 'segment', 
+        '-reset_timestamps', '1', output_pattern
+    ]
     try:
         subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT, check=True)
         return sorted(glob.glob(f"{base_name}_part*.mp4"))
     except: return [input_file]
 
 def get_settings_keyboard(uid: int):
+    """Меню настроек"""
     data = pending.get(uid)
     q, d = data.get("qual", 720), data.get("dur", 30)
     kb = InlineKeyboardBuilder()
@@ -67,6 +74,7 @@ def get_settings_keyboard(uid: int):
     kb.adjust(2, 2, 1)
     return kb.as_markup()
 
+# Reply-кнопка СТОП под вводом текста
 stop_keyboard = ReplyKeyboardMarkup(
     keyboard=[[KeyboardButton(text="🛑 ОСТАНОВИТЬ")]],
     resize_keyboard=True
@@ -111,8 +119,9 @@ async def handle_settings(callback: CallbackQuery):
 async def handle_dl(callback: CallbackQuery, bot: Bot):
     uid = int(callback.data.split("_")[-1])
     if uid not in pending: return
+    
     if download_lock.locked():
-        return await callback.answer("⏳ Очередь занята, подождите...", show_alert=True)
+        return await callback.answer("⏳ Бот занят другим видео...", show_alert=True)
 
     async with download_lock:
         if uid not in pending: return
@@ -133,30 +142,42 @@ async def handle_dl(callback: CallbackQuery, bot: Bot):
             
             for i, part in enumerate(parts):
                 if not active_tasks.get(uid): raise InterruptedError()
+                
+                # Явно задаем размеры, чтобы избежать 1:1
                 w, h = (1280, 720) if qual == 720 else (854, 480)
-                await bot.send_video(uid, video=FSInputFile(part), caption=f"📦 Часть {i+1}/{len(parts)}", width=w, height=h, supports_streaming=True)
+                
+                await bot.send_video(
+                    chat_id=uid, 
+                    video=FSInputFile(part), 
+                    caption=f"📦 Часть {i+1}/{len(parts)}", 
+                    width=w, height=h,
+                    supports_streaming=True
+                )
                 cleanup(part)
-                await asyncio.sleep(1.5)
+                await asyncio.sleep(2) # Увеличенная пауза для официального API
 
         except InterruptedError:
             for f in glob.glob(f"{DOWNLOAD_DIR}/{uid}_*"): cleanup(f)
-        except Exception: await bot.send_message(uid, "❌ Ошибка обработки.")
+        except Exception as e:
+            logger.error(f"Error: {e}")
+            await bot.send_message(uid, "❌ Ошибка обработки видео.")
         finally:
             active_tasks.pop(uid, None)
             cleanup(raw_path)
             await bot.send_message(uid, "✅ Готово.", reply_markup=ReplyKeyboardRemove())
 
 async def main():
+    # Очистка папки при старте
     for f in glob.glob(f"{DOWNLOAD_DIR}/*"): cleanup(f)
     
-    # Исправленное подключение к локальному API
-    local_server = TelegramAPIServer.from_base(LOCAL_API)
-    session = AiohttpSession(api_server=local_server)
-    
-    bot = Bot(token=BOT_TOKEN, session=session, default=DefaultBotProperties(parse_mode="HTML"))
+    # Инициализация бота без прокси и локальных серверов
+    bot = Bot(
+        token=BOT_TOKEN, 
+        default=DefaultBotProperties(parse_mode="HTML")
+    )
     
     await bot.delete_webhook(drop_pending_updates=True)
-    logger.info("🤖 Бот запущен!")
+    logger.info("🤖 Бот запущен через официальный сервер Telegram!")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
