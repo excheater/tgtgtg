@@ -37,6 +37,7 @@ def cleanup(path: str):
 def get_ydl_opts():
     return {
         "quiet": True, "no_warnings": True, "socket_timeout": 30, "retries": 10,
+        "cookiefile": "cookies.txt", # Рекомендую добавить файл куки для обхода ошибок YouTube
         "concurrent_fragment_downloads": 20, "buffersize": 1024 * 512,
         "http_headers": {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/122.0.0.0 Safari/537.36"},
     }
