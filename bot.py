@@ -30,18 +30,25 @@ pending = {}
 active_tasks = {} # {user_id: True/False}
 
 def cleanup(path: str):
+    """Удаление файла с проверкой существования"""
     if path and os.path.exists(path):
         try: os.remove(path)
         except: pass
 
 def get_ydl_opts():
+    """Настройки yt-dlp для максимальной скорости и обхода блокировок"""
     return {
-        "quiet": True, "no_warnings": True, "socket_timeout": 30, "retries": 10,
-        "cookiefile": "cookies.txt", # Рекомендую добавить файл куки для обхода ошибок YouTube
-        "concurrent_fragment_downloads": 20, "buffersize": 1024 * 512,
-        "http_headers": {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/122.0.0.0 Safari/537.36"},
+        "quiet": True, 
+        "no_warnings": True, 
+        "socket_timeout": 30, 
+        "retries": 10,
+        "cookiefile": "cookies.txt",  # Файл должен лежать в корне папки
+        "concurrent_fragment_downloads": 20, 
+        "buffersize": 1024 * 512,
+        "http_headers": {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+        },
     }
-
 def split_video_by_time(input_file: str, segment_seconds: int) -> list[str]:
     if not os.path.exists(input_file): return []
     base_name = os.path.splitext(input_file)[0]
