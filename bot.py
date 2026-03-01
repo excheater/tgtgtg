@@ -9,7 +9,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 BOT_TOKEN = os.environ.get("8096946406:AAFdBx7XWYvVg7qUUwr_JC-pVbplr2JN4-E", "8096946406:AAFdBx7XWYvVg7qUUwr_JC-pVbplr2JN4-E")
-LOCAL_API  = os.environ.get("http://telegram-bot-api-massons.railway.internal:8081", "http://telegram-bot-api-massons.railway.internal:8081")
+LOCAL_API  = os.environ.get("https://telegram-bot-api-production-7c0d.up.railway.app:8081", "https://telegram-bot-api-production-7c0d.up.railway.app:8081")
 
 DOWNLOAD_DIR = "./downloads"
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
