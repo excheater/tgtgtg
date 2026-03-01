@@ -87,10 +87,16 @@ async def download_file(file_id: str, dest: str):
         # Локальный telegram-bot-api отдаёт файлы через endpoint:
         # GET /file/botTOKEN/path  — НО только если запущен с флагом --local
         # При --local файлы хранятся в --dir и отдаются напрямую
+        # Локальный Bot API при флаге --local хранит файлы в /var/lib/telegram-bot-api/
+        # и отдаёт их через: /var/lib/telegram-bot-api/BOT_TOKEN/videos/file_0.MP4
+        # file_path от локального API выглядит как: videos/file_0.MP4
+        # Полный путь на сервере: /var/lib/telegram-bot-api/BOT_TOKEN/videos/file_0.MP4
+        # HTTP endpoint: GET /botTOKEN/FILEPATH (без /file/)
         candidates = [
+            f"{base}/bot{BOT_TOKEN}/{file_path}",
             f"{base}/file/bot{BOT_TOKEN}/{file_path}",
+            f"{base}/{BOT_TOKEN}/{file_path}",
             f"{base}/{file_path}",
-            f"{base}/bot{BOT_TOKEN}/file/{file_path}",
         ]
         last_status = None
         last_body = None
@@ -226,7 +232,6 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-
 
 
 
