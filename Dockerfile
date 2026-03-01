@@ -6,7 +6,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY bot.py .
+COPY bot_cutter.py .
 RUN mkdir -p downloads
 
-CMD ["python", "bot.py"]
+CMD ["python", "bot_cutter.py"]
