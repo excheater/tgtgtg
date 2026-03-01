@@ -69,25 +69,48 @@ async def download_file(file_id: str, dest: str):
         await asyncio.get_event_loop().run_in_executor(None, shutil.copy2, file_path, dest)
         return
 
-    # Шаг 3: пробуем разные форматы URL для локального Bot API
+    # Локальный Bot API — файл доступен по пути который вернул getFile
+    # file_path уже содержит полный путь внутри контейнера telegram-bot-api
+    # Нужно скачать через HTTP endpoint локального сервера
     base = LOCAL_API.rstrip('/')
-    candidates = [
-        f"{base}/{file_path}",
-        f"{base}/file/bot{BOT_TOKEN}/{file_path}",
-        f"{base}/bot{BOT_TOKEN}/{file_path}",
-    ]
+    
+    # Сначала проверяем что отвечает сервер
     async with aiohttp.ClientSession() as session:
+        # Пингуем сервер
+        try:
+            async with session.get(f"{base}/") as r:
+                body = await r.text()
+                logger.info(f"Ping {base}/: HTTP {r.status}, body={body[:200]}")
+        except Exception as e:
+            logger.warning(f"Ping failed: {e}")
+
+        # Локальный telegram-bot-api отдаёт файлы через endpoint:
+        # GET /file/botTOKEN/path  — НО только если запущен с флагом --local
+        # При --local файлы хранятся в --dir и отдаются напрямую
+        candidates = [
+            f"{base}/file/bot{BOT_TOKEN}/{file_path}",
+            f"{base}/{file_path}",
+            f"{base}/bot{BOT_TOKEN}/file/{file_path}",
+        ]
+        last_status = None
+        last_body = None
         for url in candidates:
-            logger.info(f"Пробуем: {url}")
-            async with session.get(url) as resp:
-                if resp.status == 200:
-                    logger.info(f"Успешно: {url}")
-                    async with aiofiles.open(dest, "wb") as f:
-                        async for chunk in resp.content.iter_chunked(1024 * 1024):
-                            await f.write(chunk)
-                    return
-                logger.warning(f"HTTP {resp.status} для {url}")
-        raise Exception(f"Все варианты URL вернули ошибку для file_path={file_path}")
+            logger.info(f"GET {url}")
+            try:
+                async with session.get(url) as resp:
+                    last_status = resp.status
+                    if resp.status == 200:
+                        logger.info(f"OK: {url}")
+                        async with aiofiles.open(dest, "wb") as f:
+                            async for chunk in resp.content.iter_chunked(1024 * 1024):
+                                await f.write(chunk)
+                        return
+                    else:
+                        last_body = await resp.text()
+                        logger.warning(f"HTTP {resp.status}: {last_body[:100]}")
+            except Exception as e:
+                logger.warning(f"Error {url}: {e}")
+        raise Exception(f"Не удалось скачать. Последний статус: {last_status}, тело: {last_body}")
 
 
 async def send_parts(chat_id: int, parts: list, title: str, bot: Bot):
@@ -204,5 +227,6 @@ async def main():
 if __name__ == "__main__":
     asyncio.run(main())
 
-if __name__ == "__main__":
-    asyncio.run(main())
+
+
+
