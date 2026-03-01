@@ -69,16 +69,25 @@ async def download_file(file_id: str, dest: str):
         await asyncio.get_event_loop().run_in_executor(None, shutil.copy2, file_path, dest)
         return
 
-    # Шаг 3: скачиваем по HTTP
-    download_url = f"{LOCAL_API.rstrip('/')}/file/bot{BOT_TOKEN}/{file_path}"
-    logger.info(f"Скачиваем по HTTP: {download_url}")
+    # Шаг 3: пробуем разные форматы URL для локального Bot API
+    base = LOCAL_API.rstrip('/')
+    candidates = [
+        f"{base}/{file_path}",
+        f"{base}/file/bot{BOT_TOKEN}/{file_path}",
+        f"{base}/bot{BOT_TOKEN}/{file_path}",
+    ]
     async with aiohttp.ClientSession() as session:
-        async with session.get(download_url) as resp:
-            if resp.status != 200:
-                raise Exception(f"HTTP {resp.status} при скачивании")
-            async with aiofiles.open(dest, "wb") as f:
-                async for chunk in resp.content.iter_chunked(1024 * 1024):
-                    await f.write(chunk)
+        for url in candidates:
+            logger.info(f"Пробуем: {url}")
+            async with session.get(url) as resp:
+                if resp.status == 200:
+                    logger.info(f"Успешно: {url}")
+                    async with aiofiles.open(dest, "wb") as f:
+                        async for chunk in resp.content.iter_chunked(1024 * 1024):
+                            await f.write(chunk)
+                    return
+                logger.warning(f"HTTP {resp.status} для {url}")
+        raise Exception(f"Все варианты URL вернули ошибку для file_path={file_path}")
 
 
 async def send_parts(chat_id: int, parts: list, title: str, bot: Bot):
@@ -191,6 +200,9 @@ async def main():
     logger.info("✂️ Бот-нарезчик запущен!")
     await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
 
+
+if __name__ == "__main__":
+    asyncio.run(main())
 
 if __name__ == "__main__":
     asyncio.run(main())
