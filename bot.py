@@ -49,10 +49,10 @@ async def ask_cerebras(user_id: int, user_message: str) -> str:
         full_response = ""
         stream = client.chat.completions.create(
             messages=messages,
-            model="llama-3.3-70b",
+            model="llama3.1-8b",
             stream=True,
-            max_completion_tokens=32768,
-            temperature=1,
+            max_completion_tokens=2048,
+            temperature=0.2,
             top_p=1,
         )
         for chunk in stream:
